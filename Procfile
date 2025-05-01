@@ -1,0 +1,1 @@
+worker: python click_bot.py
