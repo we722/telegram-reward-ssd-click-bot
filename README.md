@@ -1,4 +1,4 @@
-# Telegram Click Bot
+# Telegram Click Bot (Webhook Based)
 
 ## Features
 - /start sends ad link with inline button
@@ -6,8 +6,8 @@
 - Tracks users and clicks in JSON file
 
 ## Setup
-1. Add to GitHub
-2. Deploy to Render
+1. Upload to GitHub
+2. Deploy to Render with Web Service option (Python environment)
 3. Set environment variables:
    - BOT_TOKEN: Your Telegram bot token
    - ADS_LINK: Your advertisement URL

@@ -1,14 +1,16 @@
-import logging
-import json
+
 import os
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler
+import json
+from flask import Flask, request
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, CallbackQueryHandler
 
 TOKEN = os.getenv("BOT_TOKEN")
 ADS_LINK = os.getenv("ADS_LINK", "https://example.com")
 DATA_FILE = "users.json"
 
-logging.basicConfig(level=logging.INFO)
+app = Flask(__name__)
+application = ApplicationBuilder().token(TOKEN).build()
 
 def load_data():
     if os.path.exists(DATA_FILE):
@@ -25,10 +27,18 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = load_data()
     data["users"][user_id] = data["users"].get(user_id, 0)
     save_data(data)
-
     keyboard = [[InlineKeyboardButton("Click to Earn", url=ADS_LINK)]]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text("Click the button below to earn points:", reply_markup=reply_markup)
+
+async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    data = load_data()
+    total_users = len(data["users"])
+    total_clicks = data["clicks"]
+    income = total_clicks * 0.01
+    await update.message.reply_text(
+        f"Total Users: {total_users}\nTotal Clicks: {total_clicks}\nEstimated Income: ${income:.2f}"
+    )
 
 async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -40,20 +50,15 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     save_data(data)
     await query.edit_message_text("Thanks for clicking! You earned 1 point.")
 
-async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    data = load_data()
-    total_users = len(data["users"])
-    total_clicks = data["clicks"]
-    income = total_clicks * 0.01
-    await update.message.reply_text(
-        f"Total Users: {total_users}\nTotal Clicks: {total_clicks}\nEstimated Income: ${income:.2f}"
-    )
+application.add_handler(CommandHandler("start", start))
+application.add_handler(CommandHandler("stat", stats))
+application.add_handler(CallbackQueryHandler(button_click))
 
-def main():
-    app = ApplicationBuilder().token(TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("stat", stats))
-    app.run_polling()
+@app.route("/", methods=["POST"])
+def webhook():
+    update = Update.de_json(request.get_json(force=True), application.bot)
+    application.update_queue.put(update)
+    return "ok"
 
 if __name__ == "__main__":
-    main()
+    app.run(port=5000)
